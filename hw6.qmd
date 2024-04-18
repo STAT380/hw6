@@ -1,6 +1,6 @@
 ---
 title: "Homework 6"
-author: "[Insert your name here]{style='background-color: yellow;'}"
+author: "[Diana Batista Capellan]{style='background-color: yellow;'}"
 toc: true
 title-block-banner: true
 title-block-style: default
@@ -8,7 +8,7 @@ execute:
   freeze: true
   cache: true
 # format:
-  html: # comment this line to get pdf
+  #html: # comment this line to get pdf
   pdf: 
     fig-width: 7
     fig-height: 7
@@ -44,7 +44,7 @@ packages <- c(
   "corrplot",
   "car"
 )
-# renv::install(packages)
+#renv::install(packages)
 sapply(packages, require, character.only=T)
 ```
 
@@ -68,10 +68,15 @@ Read the data file as a tibble in R. Preprocess the data such that:
 2. all column names to lower case for consistency
 3. Any observations with missing values are dropped
 
-```R
+```{R}
 path <- "data/spending.csv"
 
-df <- ... # Insert your code here
+df <- read_csv(path) %>%
+  mutate(across(everything(), tolower)) %>%
+  drop_na() %>%
+  mutate_all(as.double)# Insert your code here
+
+head(df)
 ```
 
 ---
@@ -80,19 +85,21 @@ df <- ... # Insert your code here
 
 Visualize the correlation between the variables using the `corrplot()` function. What do you observe? What does this mean for the model?
 
-```R
-df_x  %>% ... # Insert your code here
+```{R}
+correlation_matrix <- cor(df)
+my_colors <- colorRampPalette(c("lightblue", "violet", "lightgreen"))(100)
+corrplot(correlation_matrix, order = "original", tl.col = "black", col = my_colors) # Insert your code here
 ```
-
+**I observe that each square represents a correlation and the size and color of each square indicate the strength and direction of the correlation. This means that high correlations between predictors may lead to multicollinearity issues, which can affect the stability and interpretability of the model coefficients.**
 ---
 
 ###### 1.3 (5 points)
 
 Run a linear regression model to predict the `income` variable using the remaining predictors. Interpret the coefficients and summarize your results. 
 
-
-```R
-... # Insert your code here
+```{R}
+model <- lm(income ~ ., data = df)
+summary(model) # Insert your code here
 ```
 
 ---
@@ -101,19 +108,19 @@ Run a linear regression model to predict the `income` variable using the remaini
 
 Diagnose the model using the `vif()` function. What do you observe? What does this mean for the model?
 
-```R
-... # Insert your code here
+```{R}
+vif(model) # Insert your code here
 ```
-
+**The VIF values indicate the extent of multicollinearity in the model. Generally, a VIF greater than 10 is considered problematic and suggests high multicollinearity.**
 ---
 
 ###### 1.4 (5 points)
 
 Perform PCA using the `princomp` function in R. Print the summary of the PCA object.
 
-```R
-pca <- ... # Insert your code here
-... # Insert your code here
+```{R}
+pca <- princomp(df) # Insert your code here
+summary(pca) # Insert your code here
 ```
 
 ---
@@ -122,24 +129,41 @@ pca <- ... # Insert your code here
 
 Make a screeplot of the proportion of variance explained by each principal component. How many principal components would you choose to keep? Why?
 
-```R
-... # Insert your code here
-```
+```{R}
+plot(pca, type = "lines", main = "Screeplot of PCA")
 
+xlabel <- "Principal Component"
+ylabel <- "Variance Explained"
+title <- "Screeplot of PCA"
+abline(h = 1, col = "red", lty = 2)  #reference line variance explained = 1
+title(main = title, xlab = xlabel, ylab = ylabel) # Insert your code here
+```
+**I would choose to keep the components above Comp. 4 becasue they capture the majority of the variance in the data.**
 
 ###### 1.6 (5 points)
 
 By setting any factor loadings below $0.2$ to $0$, summarize the factor loadings for the principal components that you chose to keep. 
 
-```R
-clean_loadings <- ... # Insert your code here
+```{R}
+clean_loadings <- pca$loadings[, 1:4]
+clean_loadings[clean_loadings < 0.2] <- 0 
+clean_loadings# Insert your code here
 ```
 
 
 Visualize the factor loadings. 
 
-```R
-... # Insert your code here
+```{R}
+my_colors <- c("lightblue", "violet", "lightgreen")
+
+# Create a heatmap of factor loadings with custom colors
+heatmap(clean_loadings, 
+        Rowv = NULL, Colv = NULL, 
+        col = my_colors, 
+        scale = "none", 
+        main = "Factor Loadings Heatmap",
+        xlab = "Principal Components", 
+        ylab = "Variables")
 ```
 
 ---
@@ -150,35 +174,44 @@ Based on the factor loadings, what do you think the principal components represe
 
 Provide an interpreation for each principal component you chose to keep.
 
+**High loadings (positive or negative) indicate strong associations between variables and principal components. For example theres's high spending habits on video games, and streaming services and it is shown by the high loadings for those components.**
 ---
 
 ###### 1.8 (10 points)
 
 Create a new data frame with the original response variable `income` and the principal components you chose to keep. Call this data frame `df_pca`.
 
-```R
-... # Insert your code here
+```{R}
+pca_scores <- predict(pca)
+df_pca <- data.frame(income = df$income, pca_scores[, 1:4])  
+head(df_pca) # Insert your code here
 ```
 
 Fit a regression model to predict the `income` variable using the principal components you chose to keep. Interpret the coefficients and summarize your results. 
 
-```R
-... # Insert your code here
+```{R}
+model_pca <- lm(income ~ ., data = df_pca)
+summary(model_pca) # Insert your code here
 ```
 
 Compare the results of the regression model in 1.3 and 1.9. What do you observe? What does this mean for the model?
 
-```R
-... # Insert your code here
+```{R}
+summary(model)
+summary(model_pca)# Insert your code here
 
 ```
+**In the linear regression model using the original predictors, the coefficients represent the change in income associated with a one-unit change in each predictor variable, while holding all other predictors constant. In this model the interpretation of coefficients in terms of the original variables may be more straightforward in the model using original predictors and represent the direct effects of individual predictors.** 
+
+**In the linear regression model using principal components, the coefficients represent the change in income associated with a one-unit change in each principal component, while holding all other principal components constant. This model also achieves a perfect fit (R-squared = 1), indicating that all the variance in income is explained by the principal components. This is expected since the number of principal components used equals the number of observations.**
+
 ---
 
 ###### 1.10 (10 points)
 
 Based on your interpretation of the principal components from Question 1.7, provide an interpretation of the regression model in Question 1.9.
 
-
+**The regression model in Question 1.9 captures the relationship between income and spending patterns represented by principal components, where each coefficient represents the change in income associated with a one-unit change in that principal component while holding others constant. Principal components with high loadings on luxury items, entertainment, and electronics indicate stronger associations with higher income, while those with high loadings on necessities or transportation-related items suggest associations with lower income.**
 
 ---
 
